@@ -8,10 +8,11 @@ Desenvolvido por Rudi van Els [site](http://fga.unb.br/rudi.van)
 
 # 1. Apresentação 
 
-Por que fazer este desidratador
+Por que fazer este desidratador?
 
-Especificações do desidratador.
-Registrar os seguintes dados durante o processo de secagem a cada 10 segundos de forma automática:
+Os requisitos levantado do desidratador são registrar os dados de temperatura, pesos e umidade durante o processe de secagem, permitir o controle preciso de temperatura e vazão de entrada de ar no desidratador e disponibilizar os dados medidos online.
+
+Os dados que serão registrados durante o processo de secagem a cada 10 segundos de forma automática são:
 
 - Temperatura ambiente 
 - Umidade relativa do ar no ambiente
@@ -20,18 +21,18 @@ Registrar os seguintes dados durante o processo de secagem a cada 10 segundos de
 - Umidade relativa na saída de ar do forno
 - Peso do material no forno
 
-Armazenar estes dados medidos durante o processo de secagem e permitir o acesso a estes dados diretamento pela internet em tempo real.
+Estes dados serão armazenar no próprio secador e vai ser possível accessar estes dados diretamento pela internet em tempo real.
 
-O desidratar tem que permitir controlar
+O desidratar vai permitir controlar os seguintes parâmetros do processo de secagem:
 
 - potência aplicado no resistência de aquecimento
 - Velocidade do ventilador de entrada do ar
 
-Estes controles devem ser disponibilizados localmente nos botões de operação do desidratodor, mais também por um comando via internet.
+Estes controles devem ser disponibilizados não somente localmente nos botões de operação do desidratodor, mais também por meio de  comandos via internet.
 
-Diagrama de bloco 
+A figura a seguir mostra o diagrama de bloco. 
 
-Num futuro pretende-se que possa-se estabelecer uma taxa de secagem o o sistema automaticamente fará a secagem segundo essa taxa.
+Num futuro pretende-se que possa-se estabelecer uma taxa de secagem o sistema automaticamente fará a secagem segundo essa taxa.
 
 # 2. Preparação
 
@@ -47,6 +48,8 @@ Pesagem automática.
 
 [Video com o protótipo da pesagem automática](https://www.youtube.com/watch?v=mP0JLjlJqJM)
 
+![](fotos/esp-hx11.jpg)
+
 
 ## 3.2. Duto de ar de entrada
 
@@ -55,7 +58,13 @@ Pesagem automática.
 ### Medição de umidade e temperatura no duto de entrada
 
 A foto mostra o medidro de umidade e temperatura DHT11 instalada no duto de entrada do ar.
- 
+
+![](fotos/duto-com-dht11.jpg) 
+
+
+![](fotos/detalhe-dht11.jpg)
+
+
 
 
 
