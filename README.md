@@ -16,10 +16,10 @@ Os dados que serão registrados durante o processo de secagem a cada 10 segundos
 
 - Temperatura ambiente 
 - Umidade relativa do ar no ambiente
-- Temperatura no forno
-- Temperatura na saída do ar do forno
-- Umidade relativa na saída de ar do forno
-- Peso do material no forno
+- Temperatura no desidratador
+- Temperatura na saída do ar do desidratador
+- Umidade relativa na saída de ar do desidratador
+- Peso do material no desidratador
 
 Estes dados serão armazenar no próprio secador e vai ser possível accessar estes dados diretamento pela internet em tempo real.
 
@@ -31,7 +31,7 @@ O desidratar vai permitir controlar os seguintes parâmetros do processo de seca
 Estes controles devem ser disponibilizados não somente localmente nos botões de operação do desidratodor, mais também por meio de  comandos via internet.
 
 A figura a seguir mostra o diagrama de bloco. 
-
+![](figuras/Diagrama_de_blocos.jpg)
 
 Num futuro pretende-se que possa-se estabelecer uma taxa de secagem o sistema automaticamente fará a secagem segundo essa taxa.
 
@@ -41,10 +41,11 @@ Este video mostra o forno e a proposta de transformar o forno num desidratador. 
 
 
 
+
 # 3. Implementação
 
 O diagrama elétrico é 
-![](figuras/Diagram_blocos.jpg)
+![](figuras/Diagrama_eletrico.jpg)
 
 ## 3.1. Balança eletrônica
 Pesagem automática. 
