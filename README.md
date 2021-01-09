@@ -1,5 +1,6 @@
 # ESP12_Secador
 Projeto de desenvolver um desidratador de laboratorio a partir de um forno elétrico.
+
 Desenvolvido por Rudi van Els [site](http://fga.unb.br/rudi.van) 
  
 `/Arduino/ESP12_Secador`
@@ -34,7 +35,7 @@ Num futuro pretende-se que possa-se estabelecer uma taxa de secagem o o sistema 
 
 # 2. Preparação
 
-Este video mostra o forno e a proposta de transformar o forno num desidratador.
+Este video mostra o forno e a proposta de transformar o forno num desidratador. [link para o video no youtube](https://www.youtube.com/watch?v=agu5u9XPCK0)
 
 
 
@@ -44,12 +45,12 @@ Este video mostra o forno e a proposta de transformar o forno num desidratador.
 ## 3.1. Balança eletrônica
 Pesagem automática. 
 
-Video com o protótipo da pesagem automática
+[Video com o protótipo da pesagem automática](https://www.youtube.com/watch?v=mP0JLjlJqJM)
 
 
 ## 3.2. Duto de ar de entrada
 
-Video com a apresentação do duto de ar de entrada
+[Video com a apresentação do duto de ar de entrada ](https://www.youtube.com/watch?v=D7OGNmsQnvQ)
 
 ### Medição de umidade e temperatura no duto de entrada
 
