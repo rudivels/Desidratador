@@ -1,5 +1,5 @@
 // Desidratador de laboratorio com medição de peso, temperatura e humidade.
-// Monitoramento via MODBUS-IP em página web
+// Versao simplificado com ESP webserver 
 // 
 //  06/12/2020 Primeira Versao com medicao de peso, temperatura testando o ESP12
 //             usando HX711, testando com ScadaBR na bancada local 
@@ -14,9 +14,8 @@
 //             simplificado. OK
 // 30/12/2020  Usando o AM2302 Temperatura e humidade como dht2
 //             Usando o DH11   Temperatura e humidade como dht1
+// 09/01/2021  Versao funcionando com webserver simples
 //  
-//  
-//  Baseado em Exemplo de https://domoticx.com/esp8266-wifi-modbus-tcp-ip-slave/
 //  Hardware ESP12F 
 //             
 //  Hardware 
@@ -27,28 +26,40 @@
 //  D6  SCK  HX711
 //  D7  DHTPIN AM2302 
 
+
+/* Configuracao Display
+ *  
+ */
 #include "TM1637.h"
 #define CLK D2//pins definitions for TM1637 and can be changed to other ports
 #define DIO D3
 TM1637 tm1637(CLK,DIO);
 
+/* Configuracao Wifi e webserver
+ *  
+ */
 
 #include <ESP8266WiFi.h>
 #include "acesso_wifi.h"  // define ssid & password
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
 
-int ModbusTCP_port = 502;
+
+
 
 #define TIMER_INTERRUPT_DEBUG      1
 #include "ESP8266TimerInterrupt.h"
 #define TIMER_INTERVAL_MS  1000
 ESP8266Timer ITimer;
 
-/* Celula de carga */
+/* Configuracao Celula de carga 
+*/
 #include "HX711.h"
 const int LOADCELL_DOUT_PIN = D5;
 const int LOADCELL_SCK_PIN  = D6;
 HX711 scale;
-float gramas;
+
 
 /* Temperatura */
 /* 
@@ -59,6 +70,10 @@ float gramas;
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 float Temperatura; */
+
+/* Configuracao sensores DHT11 e DHT22
+ *  
+ */
 
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
@@ -72,39 +87,37 @@ DHT_Unified dht2(DHTPIN2, DHTTYPE2);
 #define DHTTYPE1    DHT11     // DHT 11
 DHT_Unified dht1(DHTPIN1, DHTTYPE1);
 
-//////// Required for Modbus TCP / IP /// Requerido para Modbus TCP/IP /////////
-#define maxInputRegister 20
-#define maxHoldingRegister 20
- 
-#define MB_FC_NONE 0
-#define MB_FC_READ_REGISTERS 3 //implemented
-#define MB_FC_WRITE_REGISTER 6 //implemented
-#define MB_FC_WRITE_MULTIPLE_REGISTERS 16 //implemented
-//
-// MODBUS Error Codes
-//
-#define MB_EC_NONE 0
-#define MB_EC_ILLEGAL_FUNCTION 1
-#define MB_EC_ILLEGAL_DATA_ADDRESS 2
-#define MB_EC_ILLEGAL_DATA_VALUE 3
-#define MB_EC_SLAVE_DEVICE_FAILURE 4
-//
-// MODBUS MBAP offsets
-//
-#define MB_TCP_TID 0
-#define MB_TCP_PID 2
-#define MB_TCP_LEN 4
-#define MB_TCP_UID 6
-#define MB_TCP_FUNC 7
-#define MB_TCP_REGISTER_START 8
-#define MB_TCP_REGISTER_NUMBER 10
- 
-byte ByteArray[260];
-unsigned int MBHoldingRegister[maxHoldingRegister];
- 
-//////////////////////////////////////////////////////////////////////////
+/* Variaveis globais 
+ *  
+ */
+float gramas;
+float Temperatura1, Humidade1, Temperatura2, Humidade2;
 
-WiFiServer MBServer(ModbusTCP_port);
+ESP8266WebServer server(80);
+
+void handleRoot() {
+  server.send(200, "text/plain", "Webserver Desidratador esp8266 \n Temperatura 1 = " + String(Temperatura1) + 
+    " graus \n Umidade 1     = " + String(Humidade1) + 
+  " porcento\n Temperatura 2 = " + String(Temperatura2) + 
+    " graus \n Umidade 2     = " +  String(Humidade2) + 
+ " porcento \n Peso          = " + String(gramas) + " gramas"  );
+}
+
+void handleNotFound() {
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, "text/plain", message);
+}
+
 
 void display_peso(int b)
 {
@@ -123,6 +136,48 @@ void display_peso(int b)
  }
 }
 
+void configura_webserver(void)
+{
+ WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  Serial.println("");
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  if (MDNS.begin("esp8266")) {
+    Serial.println("MDNS responder started");
+  }
+  server.on("/", handleRoot);
+  server.on("/inline", []() {
+    server.send(200, "text/plain", "this works as well");
+  });
+  server.on("/gif", []() {
+    static const uint8_t gif[] PROGMEM = {
+      0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x10, 0x00, 0x10, 0x00, 0x80, 0x01,
+      0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0x2c, 0x00, 0x00, 0x00, 0x00,
+      0x10, 0x00, 0x10, 0x00, 0x00, 0x02, 0x19, 0x8c, 0x8f, 0xa9, 0xcb, 0x9d,
+      0x00, 0x5f, 0x74, 0xb4, 0x56, 0xb0, 0xb0, 0xd2, 0xf2, 0x35, 0x1e, 0x4c,
+      0x0c, 0x24, 0x5a, 0xe6, 0x89, 0xa6, 0x4d, 0x01, 0x00, 0x3b
+    };
+    char gif_colored[sizeof(gif)];
+    memcpy_P(gif_colored, gif, sizeof(gif));
+    // Set the background to a random set of colors
+    gif_colored[16] = millis() % 256;
+    gif_colored[17] = millis() % 256;
+    gif_colored[18] = millis() % 256;
+    server.send(200, "image/gif", gif_colored, sizeof(gif_colored));
+  });
+  server.onNotFound(handleNotFound);
+  server.begin();
+  Serial.println("HTTP server started");
+}
 
 void setup() 
 {
@@ -178,36 +233,14 @@ void setup()
 
  scale.tare(); 
 
+ configura_webserver();
  // calibrado 
-
- /*WiFi.begin(ssid, password);
- Serial.println(".");
- while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
- MBServer.begin();
- Serial.println("Connected ");
- Serial.print("ESP8266 Slave Modbus TCP/IP ");
- Serial.print(WiFi.localIP()); Serial.print(":"); Serial.println(String(ModbusTCP_port));
- Serial.println("Modbus TCP/IP Online"); */
  Serial.println("Pronto  ");
 }
 
 
 void loop() {
- /*
- WiFiClient client = MBServer.available();
- if (!client) { return; } 
- */
- float Temperatura1, Humidade1, Temperatura2, Humidade2;
- boolean flagClientConnected = 0;
- byte byteFN = MB_FC_NONE;
- int Start;
- int WordDataLength;
- int ByteDataLength;
- int MessageLength;
- 
- // Debugando
- while(1)
- {
+
   //sensors.requestTemperatures();
   //Temperatura=sensors.getTempCByIndex(0);
   gramas=scale.get_units(3);
@@ -238,124 +271,8 @@ void loop() {
   
   display_peso(gramas);
   delay(1000);
- }
+  server.handleClient();
+  MDNS.update();
+  
 } 
  
- /*
- // Modbus TCP/IP
- while (client.connected()) {
-   if(client.available()) {
-      flagClientConnected = 1;
-      int i = 0;
-      while(client.available()) {
-        ByteArray[i] = client.read();
-        i++;
-      }
-      client.flush();
-
-      sensors.requestTemperatures();
-      Temperatura=sensors.getTempCByIndex(0);
-      gramas=scale.get_units(3);
-
-      //sensorValue = analogRead(A0);
-      //Temperatura=sensorValue*3.3/10.24;
-      //gramas=scale.get_units();
-      //rotacao=digitalRead(interruptPin);
-
-      //Serial.print("Sens Value = "); Serial.print(sensorValue);
-      Serial.print("  , Temperatura = "); Serial.print(Temperatura); 
-      Serial.print("  , Gramas = "); Serial.println(gramas,1);
-      // Serial.print("  , counter = "); Serial.println(rotacao); 
-      
-      ///// code here --- codigo aqui
- 
-      ///////// Holding Register [0] A [9] = 10 Holding Registers Escritura
-      ///////// Holding Register [0] A [9] = 10 Holding Registers Writing
- 
-      MBHoldingRegister[0] = (int)Temperatura; //sensorValue; // random(0,12);
-      MBHoldingRegister[1] = (int)gramas;      //(int)Temperatura; // dec_gramas; // random(0,12);
-      MBHoldingRegister[2] = 0; //(int)gramas; //random(0,12);
-      MBHoldingRegister[3] = 0; // rotacao; // random(0,12);
-      MBHoldingRegister[4] = 0; //random(0,12);
-      MBHoldingRegister[5] = 0; //random(0,12);
-      MBHoldingRegister[6] = 0; //random(0,12);
-      MBHoldingRegister[7] = 0; //random(0,12);
-      MBHoldingRegister[8] = 0; //random(0,12);
-      MBHoldingRegister[9] = 0; //random(0,12);
- 
-      ///////// Holding Register [10] A [19] = 10 Holding Registers Lectura
-      ///// Holding Register [10] A [19] = 10 Holding Registers Reading
- 
-      int Temporal[10];
- 
-      Temporal[0] = MBHoldingRegister[10];
-      Temporal[1] = MBHoldingRegister[11];
-      Temporal[2] = MBHoldingRegister[12];
-      Temporal[3] = MBHoldingRegister[13];
-      Temporal[4] = MBHoldingRegister[14];
-      Temporal[5] = MBHoldingRegister[15];
-      Temporal[6] = MBHoldingRegister[16];
-      Temporal[7] = MBHoldingRegister[17];
-      Temporal[8] = MBHoldingRegister[18];
-      Temporal[9] = MBHoldingRegister[19];
- 
-      /// Enable Output 14
-      digitalWrite(14, MBHoldingRegister[14] );
- 
-      //// debug
-      for (int i = 0; i < 10; i++) {
-       Serial.print("[");
-        Serial.print(i);
-        Serial.print("] ");
-        Serial.print(Temporal[i]);
-      }
-      Serial.println("");
- 
-      //// end code - fin 
- 
-      //// routine Modbus TCP
-      byteFN = ByteArray[MB_TCP_FUNC];
-      Start = word(ByteArray[MB_TCP_REGISTER_START],ByteArray[MB_TCP_REGISTER_START+1]);
-      WordDataLength = word(ByteArray[MB_TCP_REGISTER_NUMBER],ByteArray[MB_TCP_REGISTER_NUMBER+1]);
-    }
- 
-    // Handle request
-    switch(byteFN) {
- 
-      case MB_FC_NONE:
-        break;
- 
-      case MB_FC_READ_REGISTERS: // 03 Read Holding Registers
-        ByteDataLength = WordDataLength * 2;
-        ByteArray[5] = ByteDataLength + 3; //Number of bytes after this one.
-        ByteArray[8] = ByteDataLength; //Number of bytes after this one (or number of bytes of data).
-        for(int i = 0; i < WordDataLength; i++) {
-          ByteArray[ 9 + i * 2] = highByte(MBHoldingRegister[Start + i]);
-          ByteArray[10 + i * 2] = lowByte(MBHoldingRegister[Start + i]);
-        }
-        MessageLength = ByteDataLength + 9;
-        client.write((const uint8_t *)ByteArray,MessageLength);
-        byteFN = MB_FC_NONE;
-        break;
-  
-      case MB_FC_WRITE_REGISTER: // 06 Write Holding Register
-        MBHoldingRegister[Start] = word(ByteArray[MB_TCP_REGISTER_NUMBER],ByteArray[MB_TCP_REGISTER_NUMBER+1]);
-        ByteArray[5] = 6; //Number of bytes after this one.
-        MessageLength = 12;
-        client.write((const uint8_t *)ByteArray,MessageLength);
-        byteFN = MB_FC_NONE;
-        break;
- 
-      case MB_FC_WRITE_MULTIPLE_REGISTERS: //16 Write Holding Registers
-        ByteDataLength = WordDataLength * 2;
-        ByteArray[5] = ByteDataLength + 3; //Number of bytes after this one.
-        for(int i = 0; i < WordDataLength; i++) {
-          MBHoldingRegister[Start + i] = word(ByteArray[ 13 + i * 2],ByteArray[14 + i * 2]);
-        }
-        MessageLength = 12;
-        client.write((const uint8_t *)ByteArray,MessageLength); 
-        byteFN = MB_FC_NONE;
-        break;
-    }
-  }
-} */

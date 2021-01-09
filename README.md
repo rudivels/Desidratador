@@ -32,6 +32,7 @@ Estes controles devem ser disponibilizados não somente localmente nos botões d
 
 A figura a seguir mostra o diagrama de bloco. 
 
+
 Num futuro pretende-se que possa-se estabelecer uma taxa de secagem o sistema automaticamente fará a secagem segundo essa taxa.
 
 # 2. Preparação
@@ -42,6 +43,8 @@ Este video mostra o forno e a proposta de transformar o forno num desidratador. 
 
 # 3. Implementação
 
+O diagrama elétrico é 
+![](figuras/Diagram_blocos.jpg)
 
 ## 3.1. Balança eletrônica
 Pesagem automática. 
@@ -62,7 +65,6 @@ A foto mostra o medidro de umidade e temperatura DHT11 instalada no duto de entr
 ![](fotos/duto-com-dht11.jpg) 
 
 
-![](fotos/detalhe-dht11.jpg)
 
 
 
