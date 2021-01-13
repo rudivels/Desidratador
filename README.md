@@ -79,6 +79,19 @@ No lataral do forno foi feita uma adaptação colocando um duto de ar para capta
 O video mostra a adaptação e o duto de ar. 
 [Video com a apresentação do duto de ar de entrada ](https://www.youtube.com/watch?v=D7OGNmsQnvQ)
 
+A foto a seguir mostra a entrada de ar no lateral do forno, com os 4 resistores de aquecimento lado ao lado.
+
+![](fotos/entrada_de_ar.jpg)
+
+O duto de ar impresso com impressora 3D foi construido para servir de suporte para a FANe levar o ar externo para dentro do forno. 
+A figura a seguir mostra a monagem do conjunto.
+
+![](fotos/montagem_do_duto.jpg)
+
+Um vez montada o sistema fica como mostrado na próxima foto.
+
+![](fotos/duto_montado.jpg)
+
 ### 3.3.1. Medição de umidade e temperatura no duto de entrada
 
 A foto mostra o medidor de umidade e temperatura DHT11 instalada no duto de entrada do ar.
