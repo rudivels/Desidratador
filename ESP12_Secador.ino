@@ -75,13 +75,13 @@ HX711 scale;
 
 /* Temperatura */
 /* 
- *  
+ *
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#define ONE_WIRE_BUS D4
+#define ONE_WIRE_BUS 6 // D4//
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
-float Temperatura; */
+float Temperatura3; */
 
 /* Configuracao sensores DHT11 e DHT22
  *  
@@ -232,6 +232,12 @@ void setup()
  configura_webserver();
  
  // Serial.println("Configurando sensores");
+
+ /*
+  Sensor DS qeu da problema
+  sensors.begin();
+ Serial.print("Found ");
+ Serial.print(sensors.getDeviceCount(), DEC); */ 
  
  dht2.begin();
  dht1.begin();
@@ -287,16 +293,19 @@ void setup()
  
  // calibrado 
  //Serial.println("Pronto  ");
+
+ 
 }
 
 unsigned long previousMillis = 0;
 int erro =0;
 int saida =0;
+float pot2;
 
 void loop() {
 
 
- //pot = analogRead(potmeter); ///10;
+ pot2 =  (float(analogRead(potmeter))*3.3/(1023))/0.01; //  analogRead(potmeter); ///10;
  //analogWrite(PWM_FAN, pot); //saida);
  
  unsigned long currentMillis = millis();
@@ -306,19 +315,19 @@ void loop() {
   velocidade=interruptCounter;
   interruptCounter=0;
 
-  pot = analogRead(potmeter)/10;
-  erro=pot-velocidade;
-  saida=erro*6;
-  if (saida<0) erro=0;
-  if (saida>1024) saida=1024;
-  analogWrite(PWM_FAN, saida); //saida);
+  //pot = analogRead(potmeter)/10;
+  //erro=pot-velocidade;
+  //saida=erro*6;
+  //if (saida<0) erro=0;
+  //if (saida>1024) saida=1024;
+  analogWrite(PWM_FAN, 1000);// saida); //saida);
 
   Serial.print("Temp1= \t");       Serial.print(Temperatura1,1);  
   Serial.print("\t Humid1= \t");   Serial.print(Humidade1,1); 
   //Serial.print("\t Temp2= \t"); Serial.print(Temperatura2,1);   
   //Serial.print("\t Humid2= \t");    Serial.print(Humidade2,1); 
   Serial.print("\t Gramas= \t");   Serial.print(gramas,1); 
-  Serial.print("\t Pot= ");        Serial.print(pot); 
+  Serial.print("\t Pot= ");        Serial.print(pot2,1); 
   Serial.print("\t Velo= ");       Serial.print(velocidade); 
  /* Serial.print("Erro= "); 
   Serial.print(erro);Serial.print(" \t");

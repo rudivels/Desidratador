@@ -166,9 +166,46 @@ O desidratar vai permitir controlar os seguintes parâmetros do processo de seca
 
 Estes controles devem ser disponibilizados não somente localmente nos botões de operação do desidratodor, mais também por meio de  comandos via internet.
 
+O elementos central do controlador é o microcontrolador ESP12F
+![](figuras/mod-esp12.jpg)
 
 
-O diagrama elétrico é 
+| Modulos | Descrição |
+|:--------|:----------|
+| DHT1    | Temperatura e umidade da entrada do ar |
+| DHT1    | Temperatura e umidade da saída do ar |
+| HX711   | Peso |
+| DS18B20 | Temperatura na câmara |
+| DS18B20 | Temperatura na célula de carga |
+| Dimmer  | Regular potência de aquecimento |
+| FAN     | Ventilador de regula entrad de ar |
+| Fonte   | Alimentação de 5v e 3.3v
+| LCD     | Display LCD |
+
+A interligação do ESP12F com os diversos componentes é mostrada na figura a seguir
+
+![](figuras/Dagrama_blocos_Controlador.png)
+
+
+Os pinos para ligar os módulos sao documentados na tabela a seguir.
+
+| porta | GPIO   |função         | 
+|------:|:-------|---------------|
+|  D0   | GPIO16 | LCD TMS clk   |     
+|  D1   | GPIO5  | LCD TMS DIO   |
+|  D2   | GPIO4  | FAN PWM       |
+|  D3   | GPIO0  | DHT 11        |
+|  D4   | GPIO2  | DHT 22        |
+|  D5   | GPIO14 | HX711 DOUT    |
+|  D6   | GPIO12 | HX711 SCK     |
+|  D7   | GPIO13 | FAN Rotacao   |
+|  D8   | GPIO15 | RES PWM       |
+|       | GPIO 6 | DS temperatura câmara |  
+
+
+Uma proposta de macro esquema elétrico é mostrado no diagrama elétrico a seguir 
+
+
 ![](figuras/Diagrama_eletrico.jpg)
 
 
