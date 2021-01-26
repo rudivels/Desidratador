@@ -146,6 +146,11 @@ Também é necessário modelar o retardo ou atraso do processo e avaliar sem tem
 [1] Santos I da S, Mendonça ARV, Els RH van. Instrumentacão de secador de bandejas. Congr. iniciação científica Univ. Brasília, 2020.
 
 
+## 3.5. Fonte de alimentação
+
+![](fotos/fonte_tensao.jpg)
+Entrada 220Vac
+Sáida - 5Vcc @ 1 amp. e 3.3 Vcc @ 1 amp.
 
 # 4. Controle
 
