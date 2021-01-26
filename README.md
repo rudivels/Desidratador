@@ -2,9 +2,12 @@
 
 Projeto de desenvolver um desidratador de laboratorio a partir de um forno elétrico.
 
-Desenvolvido por Rudi van Els [site](http://fga.unb.br/rudi.van) inicio dezembro 2020.
+Desenvolvido por [Rudi van Els](http://fga.unb.br/rudi.van) inicio dezembro 2020.
  
 `/Arduino/ESP12_Secador`
+
+`/Arduino?ESP12_Secador/ESP12_Secador_modbus`
+
 
 
 # 1. Apresentação 
@@ -172,27 +175,27 @@ O elementos central do controlador é o microcontrolador ESP12F
 
 | Modulos | Descrição |
 |:--------|:----------|
-| DHT1    | Temperatura e umidade da entrada do ar |
-| DHT1    | Temperatura e umidade da saída do ar |
+| DHT11   | Temperatura e umidade da entrada do ar |
+| DHT11   | Temperatura e umidade da saída do ar |
 | HX711   | Peso |
-| DS18B20 | Temperatura na câmara |
-| DS18B20 | Temperatura na célula de carga |
+| DS18B20 | Temperatura na célula de carga e na câmara|
 | Dimmer  | Regular potência de aquecimento |
 | FAN     | Ventilador de regula entrad de ar |
 | Fonte   | Alimentação de 5v e 3.3v
-| LCD     | Display LCD |
+| LCD     | Display LCD ?? |
 
 A interligação do ESP12F com os diversos componentes é mostrada na figura a seguir
 
 ![](figuras/Dagrama_blocos_Controlador.png)
 
+Devido as limitações do ESP12 teve que se tirar o LCD e um dos DS18B20, pois nem todos os pinos do ESP podem ser usados como pinos de entrada e saída. 
 
 Os pinos para ligar os módulos sao documentados na tabela a seguir.
 
 | porta | GPIO   |função         | 
 |------:|:-------|---------------|
-|  D0   | GPIO16 | LCD TMS clk   |     
-|  D1   | GPIO5  | LCD TMS DIO   |
+|  D0   | GPIO16 |               |     
+|  D1   | GPIO5  | DS18B20       |
 |  D2   | GPIO4  | FAN PWM       |
 |  D3   | GPIO0  | DHT 11        |
 |  D4   | GPIO2  | DHT 22        |
@@ -200,13 +203,14 @@ Os pinos para ligar os módulos sao documentados na tabela a seguir.
 |  D6   | GPIO12 | HX711 SCK     |
 |  D7   | GPIO13 | FAN Rotacao   |
 |  D8   | GPIO15 | RES PWM       |
-|       | GPIO 6 | DS temperatura câmara |  
+|  A0   |        | potenciômetro |  
 
 
 Uma proposta de macro esquema elétrico é mostrado no diagrama elétrico a seguir 
 
 
 ![](figuras/Diagrama_eletrico.jpg)
+
 
 
 ## 4.1. Circuito de acionamento da FAN
@@ -314,4 +318,42 @@ A foto mostra o circuito sendo montado.
 
 ![](fotos/Chave_eletronica.jpg)
 
+## 4.3. Algoritmo de controle de temperatura
+
+## 4.4. Algoritmo de compensação de temperatura
+
+Para a compensação da leitura da massa com a célula de carga é necessário fazer a compensação do efeito da temperatura na célula. 
+Para isso, foi colocado um sensor de temperatura colado na célula de carga conforme mostrado na figura a baixo.
+
+![](fotos/sensor_temperatura_celula_carga.jpg)
+
+Também devemos estudar ainda o comportamento da temperatura no ambiente do desidratador e a temperatura nas partes metálicos da parede do forno. 
+A célula de carga está fixado a uma barra de alumínio que por sua vez está ligado a parede do forno. Isso pode influenciar no comportamento térmico. 
+Uma alternativa que se pode avaliar no futuro é de usar uma chapa não metálica e bom isolante térmica para fixar a célula de carga, assim isola-lo.
+
+Também percebeu-se o atraso entre a inflencia da temperatura na deformação do metal.
+
+Vamos aqui fazer uma série de ensaios para identificar o modelo da celula de carga em função da temperatura e fazer a compensação dinâmica da massa.   
+
+
 # 5. Resultados
+
+# 5.1. Teste com majericao
+
+![](fotos/test_manjericao.jpg)
+
+![](fotos/test_manjericao_seco.jpg)
+
+
+# 5.1. Teste com banana
+
+![](fotos/test_banana.jpg)
+
+![](fotos/test_banana_seco.jpg)
+
+Curva de secagem ensaio com banana.
+
+
+![](figuras/curva_secagem_temp_banana.jpg)
+
+![](figuras/curva_secagem_banana.jpg)

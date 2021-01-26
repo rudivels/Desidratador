@@ -59,6 +59,8 @@ TM1637 tm1637(CLK,DIO);
 #include <ESP8266mDNS.h>
 
 
+
+
 #define TIMER_INTERRUPT_DEBUG      1
 #include "ESP8266TimerInterrupt.h"
 #define TIMER_INTERVAL_MS  1000
@@ -98,7 +100,7 @@ uint32_t delayMS;
 DHT_Unified dht1(DHTPIN1, DHTTYPE1);
 
 #define DHTPIN2 D4    // 4  conferir
-#define DHTTYPE2    DHT22     // DHT 22 (AM2302)
+#define DHTTYPE2    DHT11     // DHT 22 (AM2302)
 DHT_Unified dht2(DHTPIN2, DHTTYPE2);
 
 /* Variaveis globais 
@@ -123,6 +125,11 @@ void ICACHE_RAM_ATTR handleInterrupt() {
 
 
 ESP8266WebServer server(80);
+
+int ModbusTCP_port = 502;
+WiFiServer MBServer(ModbusTCP_port);
+
+
 
 void handleRoot() {
   server.send(200, "text/plain", "Webserver Desidratador esp8266 \n Temperatura 1 = " + String(Temperatura1) + 
@@ -320,12 +327,12 @@ void loop() {
   //saida=erro*6;
   //if (saida<0) erro=0;
   //if (saida>1024) saida=1024;
-  analogWrite(PWM_FAN, 1000);// saida); //saida);
+  analogWrite(PWM_FAN, saida);
 
   Serial.print("Temp1= \t");       Serial.print(Temperatura1,1);  
   Serial.print("\t Humid1= \t");   Serial.print(Humidade1,1); 
-  //Serial.print("\t Temp2= \t"); Serial.print(Temperatura2,1);   
-  //Serial.print("\t Humid2= \t");    Serial.print(Humidade2,1); 
+  Serial.print("\t Temp2= \t"); Serial.print(Temperatura2,1);   
+  Serial.print("\t Humid2= \t");    Serial.print(Humidade2,1); 
   Serial.print("\t Gramas= \t");   Serial.print(gramas,1); 
   Serial.print("\t Pot= ");        Serial.print(pot2,1); 
   Serial.print("\t Velo= ");       Serial.print(velocidade); 
@@ -341,13 +348,12 @@ void loop() {
  sensors_event_t event1;
  sensors_event_t event2;
   
-  /*
-  dht2.temperature().getEvent(&event2);
-  if (isnan(event2.temperature)) { Serial.println(F("Error reading temperature 2!"));}
+ dht2.temperature().getEvent(&event2);
+ if (isnan(event2.temperature)) { Serial.println(F("Error reading temperature 2!"));}
    else Temperatura2 = event2.temperature;
-  dht2.humidity().getEvent(&event2);
-  if (isnan(event2.relative_humidity)) {Serial.println(F("Error reading humidity 2!"));}
-   else Humidade2=event2.relative_humidity; */
+ dht2.humidity().getEvent(&event2);
+ if (isnan(event2.relative_humidity)) {Serial.println(F("Error reading humidity 2!"));}
+   else Humidade2=event2.relative_humidity; 
   
  dht1.temperature().getEvent(&event1);
  if (isnan(event1.temperature)) { Serial.println(F("Error reading temperature 1!"));}
@@ -356,22 +362,6 @@ void loop() {
  if (isnan(event1.relative_humidity)) {Serial.println(F("Error reading humidity 1!"));}
   else Humidade1=event1.relative_humidity; 
 
-  //Serial.print("Temp1= \t");    Serial.print(Temperatura1,1);   
-  //Serial.print("\t Humid1= \t");    Serial.print(Humidade1,1); 
-  //Serial.print("\t Temp2= \t"); Serial.print(Temperatura2,1);   
-  //Serial.print("\t Humid2= \t");    Serial.print(Humidade2,1); 
-  //Serial.print("\t Gramas= \t");   Serial.print(gramas,1); 
-  
-  
-  /*Serial.print("Pot= "); 
-  Serial.print(pot); Serial.print(" \t");
-  Serial.print("Velo= "); 
-  Serial.print(velocidade); Serial.print(" \t");
-  Serial.print("Erro= "); 
-  Serial.print(erro);Serial.print(" \t");
-  Serial.print("Saida= "); 
-  Serial.print(saida);Serial.print(" \t");  
-  Serial.println(" "); */
   
  display_peso(gramas);
 
