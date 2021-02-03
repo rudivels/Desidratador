@@ -118,35 +118,26 @@ A foto em baixo mostra o detalhe da instalação da célula de carga.
 
 ![](fotos/celula_carga_montada.jpg)
 
+A estrutura montada para suportar a celula de carga e a bandeja a ser pesado é mostrado nas fotografias a seguir.
+
+![](fotos/suporte_celula_01.jpg)
+
+Detailhe do suporte.
+
+![](fotos/suporte_celula_02.jpg)
+
 
 O video a seguir mostra a balança instalada e funcionando no forno fazendo a pesagem automática. 
 
 [Video com o protótipo da pesagem automática](https://www.youtube.com/watch?v=mP0JLjlJqJM)
 
-A célula de carga é ligado a um amplificador de instrumentação HX711 que é processado pelo microcontrolador que comando todo funcionamento do sistema. A foto a seguir mostra o amplificador HX711 e o microcontrolador ESP-12F.
-
-![](fotos/esp-hx11.jpg)
-
-### 3.4.1. Compensação de temperatura
-
-Um desafio deste projeto é de fazer a compensação da medição de massa com o aumento da temperatura, já que o ensaio vai ser realizado com temperatura bem a cima de temperatura ambiente para qual o sensor é calibrado.   
-
-A especificação técnica da célula de carga o sensor deve aguantar temperaturas até 70 graus, mas deve ter uma distorção da medição com o aumento da temperatura. 
-
-Um ensaio num outro projeto [1] com uma celulá de carga com a mesma caracterítica levantou o comportamento da mesma em relação aumento de temperatura. A figua a seguir mostra que uma amostra inerte de massa conhecido submetido a um ensaio. 
-
-![](figuras/ensaio_celula_carga.jpg)  
-
-Chega se a conclusão que tem para um aumento de 30  graus celsius tem-se um aumento de aproximadamente 10 gramas no valor inicial de 95 gramas.
-Isso dá um aumento de 0,35% por incremento de grau celcius.
-
-Convem mencionar que este foi o primeiro ensaio e que são necessários mais ensaios para fazer uma calibração mais precisa.
-Também é necessário modelar o retardo ou atraso do processo e avaliar sem tem algum efeito de histerese.
-
-[1] Santos I da S, Mendonça ARV, Els RH van. Instrumentacão de secador de bandejas. Congr. iniciação científica Univ. Brasília, 2020.
+A célula de carga é ligado a um amplificador de instrumentação HX711 que é processado pelo microcontrolador que comando todo funcionamento do sistema. 
 
 
 ## 3.5. Fonte de alimentação
+
+Foi instalada uma fonte de alimentação para alimentar os novos componentes eletrônicos e o microcontrolador. A fonte fornece o 5 volts cc para a alimentação do microcontrolador e 3.3 Vcc para os demais componentes eletrônicos.
+A foto a seguir mostra a fonte instalada no desidratador. 
 
 ![](fotos/fonte_tensao.jpg)
 Entrada 220Vac
@@ -187,7 +178,7 @@ O elementos central do controlador é o microcontrolador ESP12F
 | Dimmer  | Regular potência de aquecimento |
 | FAN     | Ventilador de regula entrad de ar |
 | Fonte   | Alimentação de 5v e 3.3v
-| LCD     | Display LCD ?? |
+
 
 A interligação do ESP12F com os diversos componentes é mostrada na figura a seguir
 
@@ -199,7 +190,7 @@ Os pinos para ligar os módulos sao documentados na tabela a seguir.
 
 | porta | GPIO   |função         | 
 |------:|:-------|---------------|
-|  D0   | GPIO16 |               |     
+|  D0   | GPIO16 | Chave para habiltar calibração |              
 |  D1   | GPIO5  | DS18B20       |
 |  D2   | GPIO4  | FAN PWM       |
 |  D3   | GPIO0  | DHT 11        |
@@ -246,12 +237,65 @@ O sinal de velocidade da FAN foi ligado a entrada de interrupção externa no pi
 
 Uma tentativa de implementar o controle proporcional simples, tendo como taxa de amostragem 1 segundo com valores de ganho do controlador de variando entre 6 e 15 não deu um resultado muito satisfatório e o sistema ficou instável. 
 
-Isso mostra que vai ser necessário sintonizar um controlador PID. O primeiro passo foi fazer um ensaio ao degrau, mostrada na figura a seguir, medindo o tempo entre cada interrupção gerado pelo sensor de velocidade da FAN e armazenando o tempo numa vetor de 200 pontos.  
- 
+Isso mostra que vai ser necessário sintonizar um controlador PID. 
+O primeiro passo foi fazer um ensaio ao degrau medindo o tempo entre cada interrupção gerado pelo sensor de velocidade da FAN e armazenando o tempo numa vetor de 200 pontos.  
 
-![](figuras/Ensaio_degrau_FAN.png)
-Eixo x = Tempo em milisegundos ; 
-Eixo y = Frequencia
+O programa no Arduino que armazena os dados medidos e mandar para o Octave e mostado a seguir.
+
+```
+void ICACHE_RAM_ATTR handleInterrupt() 
+{
+ interruptCounter++;
+ if (start==1)
+ {
+  temp_millis_ant=temp_millis;  
+  temp_millis=millis();
+  delta_millis=int(temp_millis-temp_millis_ant);
+  medidas[i]=delta_millis;
+  i++;
+  if (i>=tam) start=0;
+  }
+}
+
+void setup() 
+{
+ pinMode(PWM_FAN, OUTPUT);
+ pinMode(SENS_ROT, INPUT_PULLUP);
+ pinMode(D8, OUTPUT);
+ digitalWrite(PWM_FAN, 0); 
+ Serial.begin(115200);
+ delay(1000);
+ attachInterrupt(digitalPinToInterrupt(SENS_ROT), handleInterrupt, FALLING);
+ Serial.println("Pronto  ");
+}
+
+unsigned long previousMillis = 0;
+int ledState = LOW;
+int erro =0;
+int saida =0;
+int inByte;
+
+void loop() 
+{
+ digitalWrite(PWM_FAN, 0); 
+ Serial.flush();
+ delay(1000);
+ while (Serial.available()==0);
+ inByte = Serial.read();
+ temp_millis=millis();
+ start=1;
+ digitalWrite(PWM_FAN, 1); 
+ i=0;
+ delay(5000);
+ for (i=0;i<tam;i++)
+ {
+  Serial.println(medidas[i]);
+ }
+ Serial.flush(); 
+ delay(1000); 
+} 
+```
+
 
 O programa em Octave que leu, tratou e plotar essas medidas do Arduino de forma automática está listado a seguir.
 
@@ -285,6 +329,13 @@ ylabel("frequencia em Hz");
 ```
 
 
+O resultado desse ensaio é mostrada na figura a seguir, 
+
+![](figuras/Ensaio_degrau_FAN.png)
+Eixo x = Tempo em milisegundos ; 
+Eixo y = Frequencia.
+
+
 A proposta agora é projetar um controlador para poder garantir uma velocidade e consequentemente uma vazão controlada no desidratador. 
 
 O desafio vai ser montar uma estratégia de controle pendurada na interupção do próprio sensor e usar como referência o tempo entre cada interupção, ou sintonizar um controlador PID com taxa de amostragem de 1 segundo capaz de garantir o controle. 
@@ -307,7 +358,11 @@ O circuito que permite o acionamento das resistências de aquecimento é mostrad
 
 ![](figuras/Esquema_controle_potencia.png)
 
-É um circuito clássico de chave eletrônico por meio de um Triac (TIC226) acionado por um opto acoplador de isolamento MOC3023. O diode emissor de luz (led) dentro do MOC3023 é que aciona o circuito de potência. A vantagem dessa abordagem é que pode-se ligar diretamente o led à uma porta do microcontrolador e usar a mesma estratégia de variar a potência por meio da técnica PWM usado para acionar o circuito de velocidade. 
+Datasheet do triac.
+
+![](figuras/Triac_datasheet.jpg)
+
+É um circuito clássico de chave eletrônico por meio de um Triac (BT137 ou TIC226) acionado por um opto acoplador de isolamento MOC3023. O diode emissor de luz (led) dentro do MOC3023 é que aciona o circuito de potência. A vantagem dessa abordagem é que pode-se ligar diretamente o led à uma porta do microcontrolador e usar a mesma estratégia de variar a potência por meio da técnica PWM usado para acionar o circuito de velocidade. 
 
 Entretanto, como a resistência é acionado por uma fonte de potência AC da rede elétrica comercial que tem uma frequencia de 60Hz, vamos implementar a frequencia de chaveamento do PWM a uma frequencia muito mais lento que frequencia da rede elétrica. Isso é divido a própria característica do Triac e também pela limitação de tempo de chaveamento do led. 
 
@@ -319,13 +374,240 @@ Como nosso circuito é resistivo, podemos usar essa estratégia mais simples. Ou
 
 Mas isto será avaliada experimentalmente. 
 
-A foto mostra o circuito sendo montado.
+A foto mostra o circuito montado.
 
 ![](fotos/Chave_eletronica.jpg)
 
+O circcuito foi testado e a frequencia de chaveamento que melhor funcionou foi de 6 Hz. 
+A única inconveniente é que em todas as frequencias testadas a lampada incandescente piloto fica piscando.
+Para resolver isso deveria-se sincronizar a modulação de largura de pulos com a frequencia da rede elétrica, mas isso leva a uma carga excessiva de programação. 
+
+O jeito simples é retirar a lampada piloto.
+ 
+
 ## 4.3. Algoritmo de controle de temperatura
 
-## 4.4. Algoritmo de compensação de temperatura
+
+Para implementar o algoritmode controle de controle de temperatura precisamos identificar o modelo dinâmica do sistemas.
+
+O primeiro passo é fazer um enasio a uma entrada degrau e medir o comportamento da temperatura. 
+
+O ensaio será realizado nas condições normais de operação do desidratador, com o ventilador ligada em 600 de 1023 unidades, a potencia da resistência também ligada em 600 
+de 1023 unidades, e a saída de ar aberta.
+
+Ao ligar o desidratador nessas condições em malha aberta colocando a potencia da resistência de aquecimento em 600 de 1023 unidades, a temperatura no forno chegou a 80 graus celcius em aproximadamente 20 minutos e continua aumentando. 
+O relatório do ScadaBR mostra a seguinte figura.
+
+![](figuras/ensaio_malha_aberta1.jpg)
+
+Como a temperatura chegou além do ponto de operação do desidratador, vamos mudar o ensaio e colocar um degrau de malha aberta de 300 de 1023 unidades.
+
+Além disso, vamos colocar um peso inerte de 321 gramas para também avaliar o comportamento da célula de carga em função da temperatura.
+
+### 4.3.1. Ensaio a degrau
+
+```
+# Programa /Users/rudi/Desktop/ensaio_controle_temp/ensaio1.m
+# o programa espera os dados do relatorios do ScadaBR para plotar o grafico
+# entrada degrau 300/1023 unidades  saida graus
+
+pkg load io
+X = csv2cell('temp.csv',',');
+#
+#  [1,1] = secador - Temperatura3
+#  [1,2] = 2021/01/31 22:50:39
+#  [1,3] =  28
+
+X(:,2);
+t=datenum(X(:,2),"yyyy/mm/dd HH:MM:SS");
+tempo=t;
+temperatura=t;
+tempo(1)=0;
+for i=2:length(t)
+    tempo(i)=(t(i)-t(1))*24*60*60;
+endfor    
+
+tp=X(:,3);
+for i=1:length(t)
+   temperatura(i)=tp{i,1};
+endfor
+
+plot(tempo,temperatura,tempo,temperatura,'*');
+grid
+title("Resposta ao degrau Entrada 300/1023 PWM");
+xlabel("tempo em segundos");
+ylabel("temperatura em graus");
+```
+
+![](figuras/ensaio_entrada_300.png)
+
+
+Com este ensaio é possível parametrizar o modelo. 
+
+### 4.3.2 Modelo de sistema de primeira ordem
+
+Y(s) / U(s) = K / ( t s +1) 
+
+onde K é o ganho e t o constante de tempo.
+Considerando o valor final da curva de temperatura em 85 graus para um degrau de 300 de 1023 unidades.
+
+O ganho noss caso será  K = ( 85 - 27 )/ 300
+
+O constante de tempo t é o tempo que a curva atinge 63% do valor final. 
+Ou seja 62,3% do valor final é 53 graus celcius e este valor é atingido no instante de 658 segundos. 
+
+Y(s) / U(s) = 0,1933 / (658 s +1 )
+
+```
+# Simulacao do modelo tomando como valor inicial 27 graus celcius
+# e uma entrada degrau de 300 unidades
+num = (85-27)/300;
+den = [658 1];
+t=(0 :1 :2500);
+sys = tf (num , den);
+[y , t, x ]=step(sys, t);
+plot(t,y*300+27)
+
+```
+A figura mostra o modelo simulado e a resposta real.
+Dá para ver claramente a necessidade de incorporar o atraso de tempo do sistema.
+
+Entretanto creio que com um controlador PI será possível regular a temperatura.  
+
+![](figuras/simulado1.png)
+
+
+### 4.3.3 Controlador PID 
+
+D(s) = Kp ( 1 + 1 / Ti s + Td s )
+
+Vamos usar o método clássico de sintonia do controlador de PID, método de resposta ao degrau ou primeiro método de Ziegler Nichols.
+O método usa o atraso de tempo "L" e a constante de tempo "T" e a taxa de reação que é R = A / T
+
+![](figuras/sintonia_pid.jpg)
+
+L = 150 e  T = 1200 segundos e R = A /T  = (85-27)/1200 = 0,048;   RL = 0,048 * 150 = 7,25
+1/ RL = 0,138
+
+
+| Tipo | Kp       |  Ti     | Td    | 
+|-----:|:--------:|:-------:|:-----:|
+| P    |   1 / RL | inf     | 0     |
+| PI   | 0,9 / RL | L / 0,3 | 0     |
+| PID  | 1,2 / RL | 2 L     | 0,5 L |
+
+
+| Tipo | Kp    | Ti  | Td | 
+|-----:|:-----:|:---:|:--:|
+| P    | 0,138 | inf | 0  |
+| PI   | 0,124 | 500 | 0  |
+| PID  | 0,166 | 300 | 75 |
+
+
+
+Simulação do controlador e do processo.
+
+```
+num = (85-27)/300;
+den = [658 1];
+t=(0 :1 :2500);
+sys = tf (num , den);
+#[y , t, x ]=step(sys, t);
+#plot(t,y*300+27)
+
+# controlador PID
+contr = pid(9.6, 300, 75);
+# Sistema em malha aberta
+sist_abert = blkdiag(sys, contr);
+# Sistema em malha fechada
+sist_fech  = feedback(sist_abert);
+# Simulação da entrada a degrau
+step(sist_fech,t);
+#plot(t,y*300+27)
+
+```
+
+
+### 4.3.4  Implementação do controlador  digital
+
+O controlador proportional integral derivativa tem a seguinte implementação:
+
+```
+U(s) / E(s) = Kp ( 1 + 1/ Ti s + Td s)
+```
+
+Para implementar o controlador pelo seu equivalente discretizado vamos utilizar o método da aproximação retangular para o integrador e o método da aproximação retangular regressiva para o controlador derivativa.
+ 
+Para o termo integrativo substituimos  s por  (z-1)/T 
+
+Para o termo derivativo substituimos  s por  (z-1)/ Tz  
+
+O tempo e amostragem T  é de 1 segundo  
+
+  
+Resolvendo o sistema e tomanda a transformada inversa chega se ao seguinte algoritmo de controle 
+
+```
+U(t) = U(t-1) + q0 E(t) + q1 E(t-1) + q0 E(t-2)
+
+onde q0 = Kp (1 + Td) = 0.125   =  49,96
+     q1 = Kp (-1 + 1/Td - 2Td ) = -99,76
+     q2 = Kp * Td               =  49,80
+
+```
+
+
+ou sua implementação no arduino fazendo U=Saida e E é sinal de erro.
+Uma problema que apareceu é a saturação do termo integral *intregral windup* que foi retirado por meio de uma sentença *if else*
+
+```
+void interrupcao_1segundo(void)
+{
+ Saida_1 = Saida;
+ Erro_2 = Erro_1;
+ Erro_1 = Erro;
+ Erro = Referencia - Temperatura; 
+ Saida = Saida_1 + q0 * Erro +  q1 * Erro_1 + q2 * Erro_2;
+ if (Saida > 1023) {analogWrite(PWM_RES,1023); Saida=1023;}
+  else
+   if (Saida => 0) analogWrite(PWM_RES, Saida); 
+    else { analogWrite(PWM_RES, 0); Saida=0;}
+}
+```
+
+
+O controlador PID sintonizado por este meio não funciou de acordo conforme pode ser visto nas fuguras.
+O setpoint nessa condição era de 
+
+ 
+![](figuras/resposta_temp_pid1.png) 
+
+![](figuras/resposta_saida_pid1.png)
+
+Fizemos alguns ajustes dos parametros por tentativa e erro, mas mesmo assim o sistema ficou oscilando muito. 
+
+Vamos ter que partir para outra estratégia de controle, usando os métodos classicos de alocação de polos ou um feedforward so 
+
+## 4.4. Algoritmo de compensação de temperatura da balança 
+
+Um desafio deste projeto é de fazer a compensação da medição de massa com o aumento da temperatura, já que o ensaio vai ser realizado com temperatura bem a cima de temperatura ambiente para qual o sensor é calibrado.   
+
+A especificação técnica da célula de carga o sensor deve aguantar temperaturas até 70 graus, mas deve ter uma distorção da medição com o aumento da temperatura. 
+
+Um ensaio num outro projeto [1] com uma celulá de carga com a mesma caracterítica levantou o comportamento da mesma em relação aumento de temperatura. A figua a seguir mostra que uma amostra inerte de massa conhecido submetido a um ensaio. 
+
+![](figuras/ensaio_celula_carga.jpg)  
+
+Chega se a conclusão que tem para um aumento de 30  graus celsius tem-se um aumento de aproximadamente 10 gramas no valor inicial de 95 gramas.
+Isso dá um aumento de 0,35% por incremento de grau celcius.
+
+Convem mencionar que este foi o primeiro ensaio e que são necessários mais ensaios para fazer uma calibração mais precisa.
+Também é necessário modelar o retardo ou atraso do processo e avaliar sem tem algum efeito de histerese.
+
+[1] Santos I da S, Mendonça ARV, Els RH van. Instrumentacão de secador de bandejas. Congr. iniciação científica Univ. Brasília, 2020.
+
+### 4.4.1. Compensação dinâmica 
+
 
 Para a compensação da leitura da massa com a célula de carga é necessário fazer a compensação do efeito da temperatura na célula. 
 Para isso, foi colocado um sensor de temperatura colado na célula de carga conforme mostrado na figura a baixo.

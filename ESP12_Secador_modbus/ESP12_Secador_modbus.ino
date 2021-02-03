@@ -33,13 +33,22 @@
 //             Falta 1) trocar DHT11 na saida por um DHT22 pois fica fora da faixa de operacao
 //             Falta 2) implementar rotina de controle de velocidade
 //             Falta 3) implementar rotina de controle de temperatura
+// 31/01/2021  Usando EEPROM para gravar a calibração da balanca eletronica
+//             O pino D0 será usada para habilitar a calibracao online 
+//             Quando D0 for 0 ele entrará numa rotina de calibracao via serial (ou wifi no futuro)
+// 02/02/2021  Implementacao PID com taxa de amastragem de 1 segundo 
+//             Parametros PID q0, q1, q2 via ScadaBR base 100
+//             Monitoracao Erros e Saida via ScadaBR
+//             Habilitacao rotina PID via ScadaBR
+//             PID não funcionou muito bem. Vamos ter que encarar outro algoritmo
+// 
 //  
 //  Hardware ESP12F 
 //             
 //  Hardware
 //  A0  potmeter
+//  D0  calibracao
 //  D1  temperatura one wire
-//  D0      
 //  D2  PWM_FAN       
 //  D3  DHTPIN1 DHT11 (1)   
 //  D4  DHTPIN1 DHT11 (2)      
@@ -82,7 +91,12 @@ void ICACHE_RAM_ATTR onTimerISR(){
 #include "HX711.h"
 const int LOADCELL_DOUT_PIN = D5;
 const int LOADCELL_SCK_PIN  = D6;
+
 HX711 scale;
+/* calibracao balanca */
+#include <EEPROM.h>
+#define pin_calibracao D0
+
 
 /* Temperatura DS18B20*/
 /* 
@@ -119,6 +133,7 @@ float Temperatura3;
 int velocidade=0;
 volatile byte interruptCounter =0;
 int potmeter=0;
+unsigned int pwm_frequencia;
 int pwm_saida_fan;
 int pwm_saida_res;
 int segundos=0;
@@ -194,12 +209,30 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
+boolean controle_PI=0;
+int Referencia;
+float Saida, Saida_1, Erro, Erro_1, Erro_2;
+float q0=0.125;
+float q1=0.12375;
+float q2=0;
 
 void temporizador1s(void)
 {
  velocidade=interruptCounter;
  interruptCounter=0;
  segundos++;
+
+ if (controle_PI==1) 
+ {
+  Saida_1 = Saida;
+  Erro_2 = Erro_1;
+  Erro_1 = Erro;
+  Erro = Referencia - Temperatura2; 
+  Saida = Saida_1 + q0 * Erro  + q1 * Erro_1 + q2 * Erro_2;
+  if (Saida < 0) { analogWrite(PWM_RES,0); Saida=0; } else
+   if (Saida > 1023) { analogWrite(PWM_RES,1023); Saida=1023; } else
+    analogWrite(PWM_RES, (unsigned int)Saida);
+ }
 }
 
 void imprime_serial(void)
@@ -269,9 +302,12 @@ void setup()
  pinMode(PWM_FAN, OUTPUT);
  pinMode(SENS_ROT, INPUT_PULLUP);
  pinMode(PWM_RES, OUTPUT);
+ pinMode(pin_calibracao, INPUT_PULLUP);
 
  digitalWrite(PWM_FAN, 0); 
  digitalWrite(PWM_RES, 0); 
+ pwm_frequencia=6;
+ analogWriteFreq(pwm_frequencia);
  
  Serial.begin(57600);
  delay(1000);
@@ -296,53 +332,105 @@ void setup()
  delay(100);
  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
 
- /* Rotina para calibrar 
-
- int intser;
+ /* Rotina para calibrar */
+ int offset;
  float calib;
- Serial.println(" ");
- Serial.println("Calibrando .. ");
+ if (digitalRead(pin_calibracao)==0)
+ {
+  float massa;
+  String ss;
+  String string_Value;
+  Serial.println("Rotina de calibracao ");
+  Serial.println("Verifica se a tela estah no lugar sem nenhum peso digita algo.. ");
+  while (Serial.available() <= 0) ;
+  ss =Serial.readString();
+  delay(500);
+  scale.set_scale();
+  scale.tare();
+  Serial.println("Coloca um peso conhecido e digita a sua massa em gramas terminando ");
+  while(Serial.available() <= 0);
+  massa = Serial.parseFloat(); 
+  Serial.print("Massa = ");
+  Serial.println(massa);
+  calib=scale.get_units(10)/massa;
+  // pega dez medidas e retorna float
+  // divide o valor retornado pelo peso conhecido
+  // passa a resposta no set_scale()
+  Serial.print("Valor calibracao = ");
+  Serial.println(calib);  
+  scale.set_scale(calib); 
+  Serial.println("Retira o peso para pegar o valor do offset e digite algo "); 
+  while (Serial.available() <= 0) ;
+  ss =Serial.readString();
+  offset=scale.get_offset(); 
+  Serial.print("Valor Offset =");
+  Serial.println(offset); 
+  // Grava dados no E2prom
+  EEPROM.begin(100);
+  int n=0;
+  string_Value=String(calib,1);
+  string_Value=string_Value+";";
+  for(n=0; n< string_Value.length();n++) { EEPROM.write(n,string_Value[n]); }
+  EEPROM.commit();
+  string_Value=String(offset);
+  string_Value=string_Value+";";
+  Serial.print("n = ");
+  Serial.println(n);
+  for(int m=0; m< string_Value.length();m++) { EEPROM.write(n,string_Value[m]); n++;}
+  EEPROM.commit();
+ } else
+ { // leia dados de calib do E2prom
+  Serial.println("Lendo dados de calibracao do e2prom");
+  String string_Value1="";
+  //calib= 2097.27;
+  //offset= 338624; // 418671;
+  int n=0;
+  EEPROM.begin(100);
+  while (char(EEPROM.read(n))!=';')
+  {
+   string_Value1 += String(char(EEPROM.read(n)));
+   n++; 
+  }  
+  Serial.println("Calibracao string = "+String(string_Value1));
+  calib=string_Value1.toFloat();  
+  n++;
+  Serial.print("n = ");
+  Serial.println(n);
+  string_Value1="";
+   
+  while (char(EEPROM.read(n))!=';')
+  {
+   string_Value1 += String(char(EEPROM.read(n)));
+   n++; 
+  }  
+  Serial.println("Offset string = "+String(string_Value1));
+  offset=string_Value1.toInt();  
+ }
 
- scale.set_scale();
- scale.tare();
- Serial.println("Coloca um peso conhecido e digita algo");
- 
- while (Serial.available() <= 0) ;
- intser=Serial.read();
- 
- Serial.println("Lendo ");
- calib=scale.get_units(10);
- Serial.println(calib);  
- // pega dez medidas e retorna float
- // divide o valor retornado pelo peso conhecido
- // passa a resposta no set_scale()
- Serial.print("calibrando com ");
- Serial.println(calib);  
- Serial.println("Digita algo para continuar ");
- while (Serial.available() <= 0) ;
  /* Fim calibracao */
- 
- scale.set_scale(271794/130); // 88110/42);
- Serial.print("Valor calibrado = "); 
- Serial.println( 271794/130); // 88110/42);
- //scale.tare();   // Eu nao sei se eh preciso fazer isso depois da calibracao// 
- scale.set_offset(418671);
- // Serial.print("get offset ");
- // Serial.println(scale.get_offset()); 
- 
+ scale.set_scale(calib);  
+ Serial.print("Calibrando com  = "); 
+ Serial.println(calib);  
+ Serial.print("Ajustando offset com = ");
+ Serial.println(offset); 
+ scale.set_offset(offset); 
  configura_webserver();
 }
 
-unsigned long previousMillis = 0;
+
 int erro =0;
-//float pot2;
 
 void loop() 
 {
  /* Saida acionamento */
  // delay(100);
- analogWrite(PWM_FAN, pwm_saida_fan); 
- analogWrite(PWM_RES, pwm_saida_res);  
+
+ //analogWriteRange
+ analogWriteFreq(pwm_frequencia);
+ 
+ analogWrite(PWM_FAN, pwm_saida_fan);
+
+ if (controle_PI==0) analogWrite(PWM_RES, pwm_saida_res);  
  /* le sensores */
  potmeter =  analogRead(potmeterpin)/10;  // escalando entre 1023/10
 
@@ -418,8 +506,10 @@ void loop()
       MBHoldingRegister[5] = (int)Temperatura3;
       MBHoldingRegister[6] = velocidade;  
       MBHoldingRegister[7] = potmeter; 
-      MBHoldingRegister[8] = 0; //random(0,12);
-      MBHoldingRegister[9] = 0; //random(0,12);
+      MBHoldingRegister[8] = int(Erro); 
+      MBHoldingRegister[9] = int(Saida); 
+
+
  
       ///////// Holding Register [10] A [19] = 10 Holding Registers Lectura
       ///// Holding Register [10] A [19] = 10 Holding Registers Reading
@@ -442,7 +532,12 @@ void loop()
 
       pwm_saida_fan=MBHoldingRegister[10];
       pwm_saida_res=MBHoldingRegister[11];
- 
+      pwm_frequencia=MBHoldingRegister[12];      
+      if (MBHoldingRegister[13]==1) controle_PI=1; else controle_PI=0; 
+      Referencia=MBHoldingRegister[14];
+      q0=int(MBHoldingRegister[15])/100;  // float q0=0.125;
+      q1=int(MBHoldingRegister[16])/100;  // float q1=0.12375;
+      q2=int(MBHoldingRegister[17])/100;  // float q1=1
       //// debug
       for (int i = 0; i < 10; i++) {
        Serial.print("[");
