@@ -406,6 +406,18 @@ Além disso, vamos colocar um peso inerte de 321 gramas para também avaliar o c
 
 ### 4.3.1. Ensaio a degrau
 
+O ScadaBR que monitora os dados do desidratador gera um relatorio com os valores de todos os sensores com seu respectivo o horário. 
+O trecho a seguir mostra o formato de gravação desses dados do ScadaBR.
+
+```
+secador - Temperatura3,2021/01/31 22:52:27,28.0,28.0
+secador - Temperatura3,2021/01/31 22:53:39,29.0,29.0
+secador - Temperatura3,2021/01/31 22:54:37,30.0,30.0
+secador - Temperatura3,2021/01/31 22:55:15,31.0,31.0
+
+```
+Este arquivo é gravada no formato CSV e pode ser acessado por um programa em Octave. 
+
 ```
 # Programa /Users/rudi/Desktop/ensaio_controle_temp/ensaio1.m
 # o programa espera os dados do relatorios do ScadaBR para plotar o grafico
