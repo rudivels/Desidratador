@@ -69,7 +69,13 @@
 //             Trabalhando com inteiros multiplicados por 10.
 //             Opcao para trabalhar com P, PI, PD e PID selecionado pelo ScadaBR
 //
-//             
+// 22/02/2021  Colocando display OLE e usando TX e RX como IO
+//             Impressao de boot OK.. Precisa ainda detalhar WiFi 
+//             Impressao de valores no display OK
+//             Botao de inicio de secagem OK..
+//             Falta ver display na sequencia de calibracao
+//             Controle padrao PD com q0=3 e q1=-1 e fan em 600  
+//               
 //  Hardware
 //  A0  potmeter
 //  D0  calibracao
@@ -80,8 +86,18 @@
 //  D5  DOUT HX711
 //  D6  SCK  HX711
 //  D7  SENS_ROT
-//  D8  PWM_RES 
+//  D8  PWM_RES
+//  TX  OLE_SDA
+//  RX  OLE_SCL
 
+// Incluindo display 
+//
+#include "SSD1306Wire.h"  
+// #include "images.h"  
+SSD1306Wire display(0x3c, 3, 1);  // (RX=SDA,TX=SCL)
+
+// Temporizadores
+// 
 
 #include<Ticker.h>
 //Ticker tick_mostra_display;
@@ -146,8 +162,9 @@ uint32_t delayMS;
 DHT_Unified dht1(DHTPIN1, DHTTYPE1);
 
 #define DHTPIN2 D4    // 4  conferir
-#define DHTTYPE2    DHT11     // DHT 22 (AM2302)
-DHT_Unified dht2(DHTPIN2, DHTTYPE2);
+#define DHTTYPE2    DHT22  // 11     // DHT 22 (AM2302)
+// DHT_Unified dht2(DHTPIN2, DHTTYPE2);
+DHT dht2(DHTPIN2, DHTTYPE2);
 
 /* Variaveis globais 
  *  
@@ -276,7 +293,8 @@ void temporizador1s(void)
 
 void imprime_serial(void)
 {
- Serial.print("Temp1= ");     Serial.print(Temperatura1,1);  
+ display.clear();
+ /*Serial.print("Temp1= ");     Serial.print(Temperatura1,1);  
  Serial.print("\t Humid1= "); Serial.print(Humidade1,1); 
  Serial.print("\t Temp2= ");  Serial.print(Temperatura2,1);   
  Serial.print("\t Humid2= "); Serial.print(Humidade2,1); 
@@ -284,30 +302,51 @@ void imprime_serial(void)
  Serial.print("\t Velo= ");   Serial.print(velocidade);
  Serial.print("\t temp3= ");  Serial.print(Temperatura3,1);
  Serial.print("\t pot= ");     Serial.print(potmeter);
- Serial.println(" ");
+ Serial.println(" ");*/
+ display.setFont(ArialMT_Plain_10);
+ display.drawString( 0, 0, "T1="); display.drawString(20, 0, String(Temperatura1/10,1));   
+ display.drawString(50, 0, "H1="); display.drawString(70, 0, String(Humidade1,0));
+ display.drawString(85, 0, "H2="); display.drawString(105,0, String(Humidade2,0));
+ //T3=
+ //Temperatura3/10,1
+ //display.drawString( 0,20, "T2="); display.drawString(25,20, String(Temperatura2/10,1)); 
+ //display.drawString(60,20, "H2="); display.drawString(85,20, String(Humidade2,0));
+ display.setFont(ArialMT_Plain_16);
+ display.drawString( 0,17, "Temp="); display.drawString(55,17, String(Temperatura2/10,1));  
+ display.drawString( 0,33, "Setp="); display.drawString(55,33, String(potmeter/10));
+ display.drawString( 0,49, "Mass="); display.drawString(55,49, String(gramas,1));
+ if (controle>0) 
+ {
+  display.drawString(95,33, "CTR"); 
+  display.drawString(105,49, "On");
+ } 
+ display.display();
 }
 
 void configura_webserver(void)
 {
  WiFi.mode(WIFI_STA);
  WiFi.begin(ssid, password);
- Serial.println("");
+ // Serial.println("");
  // Wait for connection
  segundos=0;
  while ((WiFi.status() != WL_CONNECTED) && (segundos<20)){
     delay(500);
-    Serial.print(".");
+    //Serial.print(".");
  }
  if (WiFi.status() == WL_CONNECTED)
  {
-  Serial.println("");
+  display.drawString(0, 30, "WiFi OK");
+  display.drawString(0, 40, ssid);  
+  //display.drawString(0, 50, WiFi.localIP());
+  /*Serial.println("");
   Serial.print("Connected to ");
   Serial.println(ssid);
   Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println(WiFi.localIP());*/
   MBServer.begin();
  }
- else Serial.println("Sem conexao internet "); 
+ else   display.drawString(0, 30, "Sem WiFi "); //Serial.println("Sem conexao internet "); 
   /*if (MDNS.begin("esp8266")) {
     Serial.println("MDNS responder started");
   }
@@ -334,10 +373,28 @@ void configura_webserver(void)
   server.onNotFound(handleNotFound);
   server.begin();
   Serial.println("HTTP server started"); */
+  display.display();
 }
 
 void setup() 
 {
+ // Configurando Display
+ //GPIO 1 (TX) swap the pin to a GPIO.
+ pinMode(1, FUNCTION_3);  // para voltar FUNCTION_0
+ //GPIO 3 (RX) swap the pin to a GPIO.
+ pinMode(3, FUNCTION_3); 
+ pinMode(1, OUTPUT);  
+ pinMode(3, OUTPUT);  
+ 
+ // Initialising the UI will init the display too.
+ display.init();
+ display.flipScreenVertically();
+ display.setFont(ArialMT_Plain_10);
+ display.setTextAlignment(TEXT_ALIGN_LEFT);
+ display.drawString(0, 0, "Secador V1");
+ display.display();
+ // Final configurando display
+ // 
  pinMode(PWM_FAN, OUTPUT);
  pinMode(SENS_ROT, INPUT_PULLUP);
  pinMode(PWM_RES, OUTPUT);
@@ -348,7 +405,7 @@ void setup()
  pwm_frequencia=6;
  analogWriteFreq(pwm_frequencia);
  
- Serial.begin(57600);
+ // Serial.begin(57600);
  delay(1000);
  attachInterrupt(digitalPinToInterrupt(SENS_ROT), handleInterrupt, FALLING);
 
@@ -362,8 +419,8 @@ void setup()
  sensor_t sensor1;
  sensor_t sensor2;
 
- dht2.temperature().getSensor(&sensor2);
- delayMS = sensor2.min_delay / 1000;  
+ //dht2.temperature().getSensor(&sensor2);
+ //delayMS = sensor2.min_delay / 1000;  
 
  dht1.temperature().getSensor(&sensor1);
  delayMS = sensor1.min_delay / 1000;  
@@ -379,7 +436,23 @@ void setup()
   float massa;
   String ss;
   String string_Value;
-  Serial.println("Rotina de calibracao ");
+  display.drawString(0, 10, "Calibracao - Liga o USB");
+  //display.drawString(0, 20, "Liga serial o cabo serial");
+  display.display();
+  delay(1000);
+  
+  pinMode(1, FUNCTION_0);  // para voltar FUNCTION_0
+  pinMode(3, FUNCTION_0); 
+  Serial.begin(9600);
+  delay(1000); 
+
+  while (Serial.available() <= 0) ;
+  ss =Serial.readString();
+  delay(500);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  
+  Serial.println("Rotina de calibracao  ");
   Serial.println("Verifica se a tela estah no lugar sem nenhum peso digita algo.. ");
   while (Serial.available() <= 0) ;
   ss =Serial.readString();
@@ -417,9 +490,28 @@ void setup()
   Serial.println(n);
   for(int m=0; m< string_Value.length();m++) { EEPROM.write(n,string_Value[m]); n++;}
   EEPROM.commit();
- } else
+  Serial.println("Fim rotina calibracao - tira o USB e digita algo e enter");
+  while (Serial.available() <= 0) ;
+  ss =Serial.readString();
+  delay(1000);
+  pinMode(1, FUNCTION_3);  // para voltar FUNCTION_0
+  pinMode(3, FUNCTION_3); 
+  pinMode(1, OUTPUT);  
+  pinMode(3, OUTPUT);  
+ 
+ // Initialising the UI will init the display too.
+  display.init();
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(0, 0, "Continuando");
+  display.display();  
+ } 
+ else
  { // leia dados de calib do E2prom
-  Serial.println("Lendo dados de calibracao do e2prom");
+  display.drawString(0, 10, "lendo e2prom");
+  display.display();
+  // Serial.println("Lendo dados de calibracao do e2prom");
   String string_Value1="";
   //calib= 2097.27;
   //offset= 338624; // 418671;
@@ -430,11 +522,11 @@ void setup()
    string_Value1 += String(char(EEPROM.read(n)));
    n++; 
   }  
-  Serial.println("Calibracao string = "+String(string_Value1));
+  //Serial.println("Calibracao string = "+String(string_Value1));
   calib=string_Value1.toFloat();  
   n++;
-  Serial.print("n = ");
-  Serial.println(n);
+  //Serial.print("n = ");
+  //Serial.println(n);
   string_Value1="";
    
   while (char(EEPROM.read(n))!=';')
@@ -442,16 +534,20 @@ void setup()
    string_Value1 += String(char(EEPROM.read(n)));
    n++; 
   }  
-  Serial.println("Offset string = "+String(string_Value1));
+  //Serial.println("Offset string = "+String(string_Value1));
   offset=string_Value1.toInt();  
  }
 
  /* Fim calibracao */
  scale.set_scale(calib);  
- Serial.print("Calibrando com  = "); 
+ /*Serial.print("Calibrando com  = "); 
  Serial.println(calib);  
  Serial.print("Ajustando offset com = ");
- Serial.println(offset); 
+ Serial.println(offset); */
+
+ display.drawString(0,20, "Off set");
+ display.display();
+ 
  scale.set_offset(offset); 
  configura_webserver();
 
@@ -460,12 +556,14 @@ void setup()
  MBHoldingRegister[12]=6;  //             pwm_frequencia 12
  MBHoldingRegister[13]=0;  //             controle_PI    13
  MBHoldingRegister[14]=0;  //             q0_PD          14
- MBHoldingRegister[15]=1;  //             q0             15
+ MBHoldingRegister[15]=3;  //             q0             15
  MBHoldingRegister[16]=0;  //             q1_PD          16
  MBHoldingRegister[17]=-1; //             q1             17
  MBHoldingRegister[18]=0;  //             q2_PD          18
  MBHoldingRegister[19]=1;  //             q2             19
-  
+ display.display(); 
+ delay(3000);
+ display.clear();
 }
 
 
@@ -473,10 +571,15 @@ int erro =0;
 
 void loop() 
 {
+ float T1,T2,T3;
  /* Saida acionamento */
- // delay(100);
 
- //analogWriteRange
+ if (digitalRead(pin_calibracao)==0)
+ {
+  controle=3;
+  pwm_saida_fan=600;
+  delay(500);
+ }
  
  analogWriteFreq(pwm_frequencia);
  analogWrite(PWM_FAN, pwm_saida_fan);
@@ -488,37 +591,46 @@ void loop()
 
 
  if (scale.wait_ready_timeout(500)) { gramas=scale.get_units(3);}
-   else { Serial.println("Erro no HX711 "); gramas = 0; } 
+   else { /*Serial.println("Erro no HX711 ");*/ gramas = 0; } 
  if ((gramas > 1000) || (gramas < -200)) gramas=0;
    
  sensors_event_t event1;
  sensors_event_t event2;  
- 
- dht2.temperature().getEvent(&event2);
- if (isnan(event2.temperature)) { Serial.println(F("Error reading temperature 2!"));Temperatura2=-1;}
-    else Temperatura2 = 10*event2.temperature;
- if ((Temperatura2 > 1000) || (Temperatura2 < -1)) Temperatura2=0;
+
+ // Sensor DHT11
+ //dht2.temperature().getEvent(&event2);
+ //if (isnan(event2.temperature)) { /*Serial.println(F("Error reading temperature 2!"));*/ Temperatura2=-1;}
+ //   else Temperatura2 = 10*event2.temperature;
+ //if ((Temperatura2 > 1000) || (Temperatura2 < -1)) Temperatura2=0;
     
- dht2.humidity().getEvent(&event2);
- if (isnan(event2.relative_humidity)) {Serial.println(F("Error reading humidity 2!"));Humidade2=-1;}
-    else Humidade2=event2.relative_humidity;   
- if ((Humidade2 > 100) || (Humidade2 < -1)) Humidade2=0;
+ //dht2.humidity().getEvent(&event2);
+ //if (isnan(event2.relative_humidity)) {/*Serial.println(F("Error reading humidity 2!"));*/ Humidade2=-1;}
+ //   else Humidade2=event2.relative_humidity;   
+ //if ((Humidade2 > 100) || (Humidade2 < -1)) Humidade2=0;
+
+ T2 = 10*dht2.readTemperature();
+ Humidade2    = dht2.readHumidity();
+ if (isnan(T2) || isnan(Humidade2) ) {
+    //Serial.println(F("Failed to read from DHT sensor!"));
+    Humidade2=-1;
+  } else Temperatura2=T2;
+
  
  dht1.temperature().getEvent(&event1);
- if (isnan(event1.temperature)) { Serial.println(F("Error reading temperature 1!"));Temperatura1=-1;}
+ if (isnan(event1.temperature)) { /*Serial.println(F("Error reading temperature 1!"));*/ Temperatura1=-1;}
     else Temperatura1 = 10*event1.temperature;
  if ((Temperatura1 > 1000) || (Temperatura1 < -1)) Temperatura1=0;
  
  dht1.humidity().getEvent(&event1);
- if (isnan(event1.relative_humidity)) {Serial.println(F("Error reading humidity 1!"));Humidade1=-1;}
+ if (isnan(event1.relative_humidity)) {/*Serial.println(F("Error reading humidity 1!"));*/ Humidade1=-1;}
     else Humidade1=event1.relative_humidity; 
  if ((Humidade1 > 100) || (Humidade1 < -1)) Humidade1=0;
 
  sensor_ds18.requestTemperatures();
 
- if(Temperatura3 == DEVICE_DISCONNECTED_C) {Serial.println("Error: Could not read temperature data");Temperatura3=-1;}
+ if(T3 == DEVICE_DISCONNECTED_C) {/*Serial.println("Error: Could not read temperature data");*/T3=-1;}
   else Temperatura3 = 10*sensor_ds18.getTempCByIndex(0);
- if ((Temperatura3 > 1000) || (Temperatura3 < -1)) Temperatura3=0;
+ // if ((Temperatura3 > 1000) || (Temperatura3 < -1)) Temperatura3=0;
  
  /* */
     
@@ -608,6 +720,7 @@ void loop()
         case 4:q2=temp/10000; break;
       }
       
+      /*
       //// debug
       int Temporal[10];
       Temporal[0] = MBHoldingRegister[10];
@@ -626,7 +739,7 @@ void loop()
         Serial.print("] ");
         Serial.print(Temporal[i]);
       }
-      Serial.println("");
+      Serial.println(""); */
  
       //// end code - fin 
  
